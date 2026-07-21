@@ -181,7 +181,7 @@
         <button class="abtn ghost" id="exportBtn">⬇️ Save backup file</button>
         <button class="abtn ghost" id="importBtn">⬆️ Restore backup</button>
       </div>
-      <div class="empty">Backups save all plays to a file — great before switching devices.</div>
+      <div class="empty">Backups save all plays and your Coach chat history to a file — great before switching devices.</div>
       <input type="file" id="importFile" accept=".json,application/json" style="display:none">
     </div>
   </section>
@@ -359,13 +359,17 @@ function drawPool(){
   ctx.strokeStyle='#ffd447';
   ctx.beginPath(); ctx.moveTo(0,330); ctx.lineTo(W,330); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(0,H-330); ctx.lineTo(W,H-330); ctx.stroke();
+  // 6m lines (green)
+  ctx.strokeStyle='#40e07f';
+  ctx.beginPath(); ctx.moveTo(0,380); ctx.lineTo(W,380); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,H-380); ctx.lineTo(W,H-380); ctx.stroke();
   // half line
   ctx.strokeStyle='rgba(255,255,255,.55)';
   ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
   // labels
   ctx.fillStyle='rgba(255,255,255,.55)'; ctx.font='700 22px -apple-system,sans-serif';
-  drawUprightText('2m',12,182); drawUprightText('5m',12,322); drawUprightText('HALF',12,H/2-10);
-  drawUprightText('5m',12,H-336); drawUprightText('2m',12,H-196);
+  drawUprightText('2m',12,182); drawUprightText('5m',12,322); drawUprightText('6m',12,372); drawUprightText('HALF',12,H/2-10);
+  drawUprightText('5m',12,H-336); drawUprightText('6m',12,H-386); drawUprightText('2m',12,H-196);
   // top goal
   ctx.fillStyle='#fff'; ctx.fillRect(250,40,200,14);
   ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(250,54,200,46);
@@ -674,7 +678,7 @@ function renderPlaybook(){
 
 /* ================= BACKUP / RESTORE ================= */
 document.getElementById('exportBtn').addEventListener('click',()=>{
-  const data={plays:getSaved(), board:JSON.parse(store.get('board')||'null')};
+  const data={plays:getSaved(), board:JSON.parse(store.get('board')||'null'), chat:JSON.parse(store.get('chat')||'[]')};
   const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download='polo-playbook-backup.json';
@@ -690,6 +694,11 @@ document.getElementById('importFile').addEventListener('change',e=>{
       const data=JSON.parse(r.result);
       if(Array.isArray(data.plays)){ setSaved(data.plays); renderPlaybook(); }
       if(data.board&&data.board.tokens){ tokens=data.board.tokens; strokes=data.board.strokes||[]; persistBoard(); draw(); }
+      if(Array.isArray(data.chat)){
+        chatHist=data.chat;
+        try{ store.set('chat',JSON.stringify(chatHist)); }catch(e){}
+        chatLog.innerHTML=''; chatHist.forEach(([who,text])=>addMsg(text,who,false));
+      }
       toast('Backup restored ✓');
     }catch(err){ toast('That file is not a valid backup'); }
   };
