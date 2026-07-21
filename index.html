@@ -130,11 +130,13 @@
     padding:20px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,.5);
   }
   .modal h3{font-size:16px; margin-bottom:12px}
+  .modal p{font-size:13px; color:var(--dim); line-height:1.5}
   .modal input{
     width:100%; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
     border-radius:12px; padding:12px 14px; color:var(--text); font-size:16px; font-family:inherit; outline:none;
   }
   .modal .row{display:flex; gap:8px; margin-top:14px}
+  .abtn.danger{background:#e03a3a; color:#fff}
 </style>
 </head>
 <body>
@@ -207,6 +209,16 @@
     <div class="row">
       <button class="abtn ghost" id="cancelSave">Cancel</button>
       <button class="abtn save" id="confirmSave">Save</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="clearModal">
+  <div class="modal">
+    <h3>🗑 Clear all ink?</h3>
+    <p>This removes every pen and arrow marking from the board. Player positions stay put. This can't be undone.</p>
+    <div class="row">
+      <button class="abtn ghost" id="cancelClear">Cancel</button>
+      <button class="abtn danger" id="confirmClear">Clear ink</button>
     </div>
   </div>
 </div>
@@ -405,7 +417,18 @@ document.querySelectorAll('.dot').forEach(d=>d.addEventListener('click',()=>{
   document.querySelectorAll('.dot').forEach(x=>x.classList.toggle('sel',x===d));
 }));
 document.getElementById('undoBtn').addEventListener('click',()=>{ strokes.pop(); draw(); persistBoard(); });
-document.getElementById('clearBtn').addEventListener('click',()=>{ strokes=[]; draw(); persistBoard(); });
+
+const clearModal=document.getElementById('clearModal');
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  if(!strokes.length) return;
+  clearModal.classList.add('open');
+});
+document.getElementById('cancelClear').addEventListener('click',()=>clearModal.classList.remove('open'));
+clearModal.addEventListener('click',e=>{ if(e.target===clearModal) clearModal.classList.remove('open'); });
+document.getElementById('confirmClear').addEventListener('click',()=>{
+  strokes=[]; draw(); persistBoard(); clearModal.classList.remove('open'); toast('Ink cleared');
+});
+
 document.getElementById('resetBtn').addEventListener('click',()=>{ tokens=defaultTokens(); strokes=[]; draw(); persistBoard(); toast('Board reset'); });
 
 const modeBtn=document.getElementById('modeBtn');
