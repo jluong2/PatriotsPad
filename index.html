@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Polo Playbook">
+<meta name="theme-color" content="#0a2a4d">
+<title>Polo Playbook — Water Polo Board &amp; Coach</title>
+<style>
+  :root{
+    --bg:#0a2a4d; --bg2:#0e3a66; --card:#12406f; --card2:#175089;
+    --water:#1273b8; --water2:#0d5e9a;
+    --accent:#ffd447; --accent2:#ff8a3d;
+    --text:#eaf4ff; --dim:#9dc3e6;
+    --safe-top:env(safe-area-inset-top,0px);
+    --safe-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(160deg,var(--bg) 0%,var(--bg2) 60%,#0a3055 100%);
+    color:var(--text); display:flex; flex-direction:column;
+    height:100dvh; overscroll-behavior:none;
+  }
+  header{
+    padding:calc(10px + var(--safe-top)) 16px 10px;
+    display:flex; align-items:center; gap:10px; flex-shrink:0;
+  }
+  header .logo{font-size:26px}
+  header h1{font-size:18px; font-weight:800; letter-spacing:.3px}
+  header h1 span{color:var(--accent)}
+  main{flex:1; overflow:hidden; position:relative}
+  .view{position:absolute; inset:0; display:none; flex-direction:column; overflow:hidden}
+  .view.active{display:flex}
+
+  /* ---------- TAB BAR ---------- */
+  nav{
+    flex-shrink:0; display:flex; justify-content:space-around;
+    background:rgba(6,24,44,.92); backdrop-filter:blur(10px);
+    padding:6px 8px calc(8px + var(--safe-bottom));
+    border-top:1px solid rgba(255,255,255,.08);
+  }
+  nav button{
+    background:none; border:none; color:var(--dim); font-size:11px; font-weight:600;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    padding:6px 18px; border-radius:14px; cursor:pointer; font-family:inherit;
+  }
+  nav button .ic{font-size:22px; line-height:1}
+  nav button.active{color:var(--accent); background:rgba(255,212,71,.12)}
+
+  /* ---------- BOARD ---------- */
+  #boardWrap{flex:1; display:flex; align-items:center; justify-content:center; padding:4px 8px; min-height:0}
+  #pool{touch-action:none; border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,.4); max-width:100%; max-height:100%}
+  .toolbar{
+    flex-shrink:0; display:flex; gap:6px; padding:8px 10px; overflow-x:auto;
+    align-items:center; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  }
+  .toolbar::-webkit-scrollbar{display:none}
+  .tbtn{
+    flex-shrink:0; background:var(--card); color:var(--text); border:1px solid rgba(255,255,255,.12);
+    border-radius:12px; padding:8px 12px; font-size:13px; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; gap:5px; font-family:inherit;
+  }
+  .tbtn.active{background:var(--accent); color:#1a2c45; border-color:var(--accent)}
+  .tbtn.warn{color:#ffb3b3}
+  .dot{width:22px; height:22px; border-radius:50%; border:2px solid rgba(255,255,255,.3); flex-shrink:0; cursor:pointer}
+  .dot.sel{border-color:#fff; transform:scale(1.15)}
+  .board-actions{flex-shrink:0; display:flex; gap:8px; padding:0 10px 8px}
+  .abtn{
+    flex:1; border:none; border-radius:12px; padding:11px; font-size:14px; font-weight:700;
+    cursor:pointer; font-family:inherit;
+  }
+  .abtn.save{background:var(--accent); color:#1a2c45}
+  .abtn.ghost{background:var(--card); color:var(--text); border:1px solid rgba(255,255,255,.12)}
+
+  /* ---------- PLAYBOOK ---------- */
+  #playbookView{padding:0 14px}
+  .pb-scroll{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:16px}
+  .pb-section{font-size:12px; font-weight:800; letter-spacing:1.2px; color:var(--dim); margin:16px 4px 8px; text-transform:uppercase}
+  .play-card{
+    background:var(--card); border:1px solid rgba(255,255,255,.1); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px; display:flex; align-items:center; gap:12px;
+  }
+  .play-card .pinfo{flex:1; min-width:0}
+  .play-card .pname{font-weight:700; font-size:15px}
+  .play-card .pdesc{font-size:12px; color:var(--dim); margin-top:2px; overflow:hidden; text-overflow:ellipsis}
+  .pbtn{border:none; border-radius:10px; padding:9px 13px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; flex-shrink:0}
+  .pbtn.load{background:var(--accent); color:#1a2c45}
+  .pbtn.del{background:rgba(255,90,90,.15); color:#ff9d9d}
+  .empty{color:var(--dim); font-size:13px; padding:8px 4px}
+
+  /* ---------- COACH CHAT ---------- */
+  #chatLog{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 14px; display:flex; flex-direction:column; gap:10px}
+  .msg{max-width:86%; padding:11px 14px; border-radius:16px; font-size:14px; line-height:1.5; white-space:pre-wrap}
+  .msg.user{align-self:flex-end; background:var(--accent); color:#1a2c45; border-bottom-right-radius:4px; font-weight:600}
+  .msg.coach{align-self:flex-start; background:var(--card); border:1px solid rgba(255,255,255,.1); border-bottom-left-radius:4px}
+  .msg.coach b{color:var(--accent)}
+  .chips{flex-shrink:0; display:flex; gap:6px; overflow-x:auto; padding:6px 12px; -webkit-overflow-scrolling:touch; scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex-shrink:0; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+    color:var(--text); border-radius:20px; padding:7px 13px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .chatbar{flex-shrink:0; display:flex; gap:8px; padding:8px 12px 10px}
+  #chatInput{
+    flex:1; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18);
+    border-radius:22px; padding:11px 16px; color:var(--text); font-size:15px; font-family:inherit; outline:none;
+  }
+  #chatInput::placeholder{color:var(--dim)}
+  #sendBtn{
+    background:var(--accent); border:none; border-radius:50%; width:44px; height:44px;
+    font-size:19px; cursor:pointer; flex-shrink:0; color:#1a2c45;
+  }
+  .toast{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(90px + var(--safe-bottom));
+    background:#0b1f38; color:var(--text); padding:10px 18px; border-radius:20px; font-size:13px;
+    font-weight:600; border:1px solid rgba(255,255,255,.2); opacity:0; transition:opacity .3s; pointer-events:none; z-index:99;
+  }
+  .toast.show{opacity:1}
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:50;
+    display:none; align-items:center; justify-content:center; padding:24px;
+  }
+  .modal-bg.open{display:flex}
+  .modal{
+    background:var(--card); border:1px solid rgba(255,255,255,.15); border-radius:18px;
+    padding:20px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .modal h3{font-size:16px; margin-bottom:12px}
+  .modal input{
+    width:100%; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+    border-radius:12px; padding:12px 14px; color:var(--text); font-size:16px; font-family:inherit; outline:none;
+  }
+  .modal .row{display:flex; gap:8px; margin-top:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🤽‍♀️</div>
+  <h1>Polo <span>Playbook</span></h1>
+</header>
+
+<main>
+  <!-- BOARD -->
+  <section class="view active" id="boardView">
+    <div class="toolbar" id="toolbar">
+      <button class="tbtn active" data-tool="move">✋ Move</button>
+      <button class="tbtn" data-tool="pen">✏️ Draw</button>
+      <button class="tbtn" data-tool="arrow">➡️ Arrow</button>
+      <div class="dot sel" data-color="#ffd447" style="background:#ffd447"></div>
+      <div class="dot" data-color="#ffffff" style="background:#fff"></div>
+      <div class="dot" data-color="#ff5a5a" style="background:#ff5a5a"></div>
+      <div class="dot" data-color="#40e07f" style="background:#40e07f"></div>
+      <button class="tbtn" id="undoBtn">↩️ Undo</button>
+      <button class="tbtn warn" id="clearBtn">🗑 Clear ink</button>
+      <button class="tbtn" id="resetBtn">🔄 Reset</button>
+    </div>
+    <div id="boardWrap"><canvas id="pool"></canvas></div>
+    <div class="board-actions">
+      <button class="abtn save" id="savePlayBtn">💾 Save play</button>
+      <button class="abtn ghost" id="toPlaybookBtn">📖 Open playbook</button>
+    </div>
+  </section>
+
+  <!-- PLAYBOOK -->
+  <section class="view" id="playbookView">
+    <div class="pb-scroll">
+      <div class="pb-section">My saved plays</div>
+      <div id="myPlays"></div>
+      <div class="pb-section">Starter set plays</div>
+      <div id="presetPlays"></div>
+      <div class="pb-section">Backup</div>
+      <div class="board-actions" style="padding:0 0 8px">
+        <button class="abtn ghost" id="exportBtn">⬇️ Save backup file</button>
+        <button class="abtn ghost" id="importBtn">⬆️ Restore backup</button>
+      </div>
+      <div class="empty">Backups save all plays to a file — great before switching devices.</div>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    </div>
+  </section>
+
+  <!-- COACH -->
+  <section class="view" id="coachView">
+    <div id="chatLog"></div>
+    <div class="chips" id="chips"></div>
+    <div class="chatbar">
+      <input id="chatInput" type="text" placeholder="Ask Coach anything…" autocomplete="off">
+      <button id="sendBtn">➤</button>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="active" data-view="boardView"><span class="ic">🎯</span>Board</button>
+  <button data-view="playbookView"><span class="ic">📖</span>Playbook</button>
+  <button data-view="coachView"><span class="ic">🧢</span>Coach</button>
+</nav>
+<div class="toast" id="toast"></div>
+<div class="modal-bg" id="saveModal">
+  <div class="modal">
+    <h3>💾 Name this play</h3>
+    <input id="playName" type="text" placeholder="e.g. Wing sneak attack" maxlength="40" autocomplete="off">
+    <div class="row">
+      <button class="abtn ghost" id="cancelSave">Cancel</button>
+      <button class="abtn save" id="confirmSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= STORAGE (safe fallback) ================= */
+const store = (() => {
+  let mem = {};
+  try { localStorage.setItem('__t','1'); localStorage.removeItem('__t');
+    return { get:k=>localStorage.getItem(k), set:(k,v)=>localStorage.setItem(k,v) };
+  } catch(e){ return { get:k=>mem[k]??null, set:(k,v)=>mem[k]=v }; }
+})();
+
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+/* ================= NAVIGATION ================= */
+const views=document.querySelectorAll('.view'), tabs=document.querySelectorAll('nav button');
+function show(id){
+  views.forEach(v=>v.classList.toggle('active',v.id===id));
+  tabs.forEach(b=>b.classList.toggle('active',b.dataset.view===id));
+  if(id==='boardView') requestAnimationFrame(resizeCanvas);
+  if(id==='playbookView') renderPlaybook();
+}
+tabs.forEach(b=>b.addEventListener('click',()=>show(b.dataset.view)));
+document.getElementById('toPlaybookBtn').addEventListener('click',()=>show('playbookView'));
+
+/* ================= BOARD ================= */
+const W=700, H=950;                       // internal coords, goal at top
+const canvas=document.getElementById('pool'), ctx=canvas.getContext('2d');
+let tokens=[], strokes=[], tool='move', color='#ffd447';
+let dragging=null, drawing=null, dpr=Math.max(1,window.devicePixelRatio||1);
+
+function defaultTokens(){
+  return [
+    {t:'g', x:350,y:75,  n:'1'},                    // goalie
+    {t:'o', x:350,y:165, n:'5'},                    // center / 2m
+    {t:'o', x:130,y:260, n:'1'}, {t:'o', x:570,y:260,n:'4'},   // wings
+    {t:'o', x:215,y:480, n:'2'}, {t:'o', x:485,y:480,n:'3'},   // tops
+    {t:'d', x:350,y:225, n:'2'},
+    {t:'d', x:185,y:310, n:'1'}, {t:'d', x:515,y:310,n:'4'},
+    {t:'d', x:255,y:520, n:'3'}, {t:'d', x:445,y:520,n:'5'},
+    {t:'ball', x:450,y:505}
+  ];
+}
+tokens=defaultTokens();
+
+/* autosave current board so a reload never loses work */
+function persistBoard(){
+  try{ store.set('board',JSON.stringify({tokens,strokes})); }catch(e){}
+}
+(function restoreBoard(){
+  try{
+    const b=JSON.parse(store.get('board')||'null');
+    if(b&&b.tokens&&b.tokens.length){ tokens=b.tokens; strokes=b.strokes||[]; }
+  }catch(e){}
+})();
+
+function resizeCanvas(){
+  const wrap=document.getElementById('boardWrap');
+  const availW=wrap.clientWidth-8, availH=wrap.clientHeight-8;
+  if(availW<=0||availH<=0) return;
+  const scale=Math.min(availW/W, availH/H);
+  canvas.style.width=(W*scale)+'px'; canvas.style.height=(H*scale)+'px';
+  canvas.width=W*scale*dpr; canvas.height=H*scale*dpr;
+  ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
+  draw();
+}
+window.addEventListener('resize',resizeCanvas);
+
+function drawPool(){
+  // water
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#1e88d4'); g.addColorStop(1,'#0d5e9a');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // lane ropes (subtle)
+  ctx.strokeStyle='rgba(255,255,255,.07)'; ctx.lineWidth=2;
+  for(let x=70;x<W;x+=70){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  // goal line
+  ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(0,100); ctx.lineTo(W,100); ctx.stroke();
+  // 2m line (red)
+  ctx.strokeStyle='#ff5a5a';
+  ctx.beginPath(); ctx.moveTo(0,190); ctx.lineTo(W,190); ctx.stroke();
+  // 5m line (yellow)
+  ctx.strokeStyle='#ffd447';
+  ctx.beginPath(); ctx.moveTo(0,330); ctx.lineTo(W,330); ctx.stroke();
+  // half line
+  ctx.strokeStyle='rgba(255,255,255,.55)';
+  ctx.beginPath(); ctx.moveTo(0,H-30); ctx.lineTo(W,H-30); ctx.stroke();
+  // labels
+  ctx.fillStyle='rgba(255,255,255,.55)'; ctx.font='700 22px -apple-system,sans-serif';
+  ctx.fillText('2m',12,182); ctx.fillText('5m',12,322); ctx.fillText('HALF',12,H-40);
+  // goal
+  ctx.fillStyle='#fff'; ctx.fillRect(250,40,200,14);
+  ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(250,54,200,46);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.strokeRect(250,40,200,60);
+}
+
+function drawStroke(s){
+  ctx.strokeStyle=s.c; ctx.lineWidth=6; ctx.lineCap='round'; ctx.lineJoin='round';
+  const p=s.p;
+  if(s.t==='pen'){
+    ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]);
+    for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]);
+    ctx.stroke();
+  } else { // arrow: first & last point
+    const [x1,y1]=p[0],[x2,y2]=p[p.length-1];
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    const a=Math.atan2(y2-y1,x2-x1), L=22;
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-L*Math.cos(a-0.45), y2-L*Math.sin(a-0.45));
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-L*Math.cos(a+0.45), y2-L*Math.sin(a+0.45));
+    ctx.stroke();
+  }
+}
+
+function drawToken(tk){
+  const R=tk.t==='ball'?16:26;
+  ctx.beginPath(); ctx.arc(tk.x,tk.y,R,0,Math.PI*2);
+  if(tk.t==='o'){ ctx.fillStyle='#f5f9ff'; }
+  else if(tk.t==='d'){ ctx.fillStyle='#12233d'; }
+  else if(tk.t==='g'){ ctx.fillStyle='#e03a3a'; }
+  else { ctx.fillStyle='#ffd447'; }
+  ctx.fill();
+  ctx.lineWidth=3; ctx.strokeStyle=tk.t==='ball'?'#c79a00':'rgba(0,0,0,.35)'; ctx.stroke();
+  if(tk.t!=='ball'){
+    ctx.fillStyle=tk.t==='o'?'#12233d':'#fff';
+    ctx.font='800 20px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(tk.n,tk.x,tk.y+1); ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+  }
+}
+
+function draw(){
+  drawPool();
+  strokes.forEach(drawStroke);
+  if(drawing) drawStroke(drawing);
+  tokens.forEach(drawToken);
+}
+
+function evPos(e){
+  const r=canvas.getBoundingClientRect();
+  return [ (e.clientX-r.left)*(W/r.width), (e.clientY-r.top)*(H/r.height) ];
+}
+
+canvas.addEventListener('pointerdown',e=>{
+  e.preventDefault(); canvas.setPointerCapture(e.pointerId);
+  const [x,y]=evPos(e);
+  if(tool==='move'){
+    for(let i=tokens.length-1;i>=0;i--){
+      const tk=tokens[i], R=tk.t==='ball'?22:32;
+      if((x-tk.x)**2+(y-tk.y)**2 < R*R){ dragging=tk; return; }
+    }
+  } else {
+    drawing={t:tool,c:color,p:[[x,y]]};
+  }
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!dragging&&!drawing) return;
+  e.preventDefault();
+  const [x,y]=evPos(e);
+  if(dragging){ dragging.x=Math.max(20,Math.min(W-20,x)); dragging.y=Math.max(20,Math.min(H-20,y)); }
+  else drawing.p.push([x,y]);
+  draw();
+});
+function endPointer(){
+  if(drawing){ if(drawing.p.length>1) strokes.push(drawing); drawing=null; }
+  dragging=null; draw(); persistBoard();
+}
+canvas.addEventListener('pointerup',endPointer);
+canvas.addEventListener('pointercancel',endPointer);
+
+document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{
+  tool=b.dataset.tool;
+  document.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));
+}));
+document.querySelectorAll('.dot').forEach(d=>d.addEventListener('click',()=>{
+  color=d.dataset.color;
+  document.querySelectorAll('.dot').forEach(x=>x.classList.toggle('sel',x===d));
+}));
+document.getElementById('undoBtn').addEventListener('click',()=>{ strokes.pop(); draw(); persistBoard(); });
+document.getElementById('clearBtn').addEventListener('click',()=>{ strokes=[]; draw(); persistBoard(); });
+document.getElementById('resetBtn').addEventListener('click',()=>{ tokens=defaultTokens(); strokes=[]; draw(); persistBoard(); toast('Board reset'); });
+
+/* ================= PLAYBOOK ================= */
+function getSaved(){ try{ return JSON.parse(store.get('plays')||'[]'); }catch(e){ return []; } }
+function setSaved(a){ store.set('plays',JSON.stringify(a)); }
+
+const saveModal=document.getElementById('saveModal'), playName=document.getElementById('playName');
+document.getElementById('savePlayBtn').addEventListener('click',()=>{
+  playName.value=''; saveModal.classList.add('open');
+  setTimeout(()=>playName.focus(),100);
+});
+document.getElementById('cancelSave').addEventListener('click',()=>saveModal.classList.remove('open'));
+saveModal.addEventListener('click',e=>{ if(e.target===saveModal) saveModal.classList.remove('open'); });
+function doSavePlay(){
+  const name=playName.value.trim() || 'My play '+new Date().toLocaleDateString();
+  const a=getSaved();
+  a.unshift({name:name.slice(0,40), desc:new Date().toLocaleDateString(), tokens:JSON.parse(JSON.stringify(tokens)), strokes:JSON.parse(JSON.stringify(strokes))});
+  setSaved(a); saveModal.classList.remove('open'); toast('Play saved to playbook ✓');
+}
+document.getElementById('confirmSave').addEventListener('click',doSavePlay);
+playName.addEventListener('keydown',e=>{ if(e.key==='Enter') doSavePlay(); });
+
+const PRESETS=[
+  {name:'Umbrella (2–2–1)', desc:'Home base on offense: center in front of the goal, two wings low, two tops high.',
+   tokens:defaultTokens(), strokes:[]},
+  {name:'Power Play (5-on-4)', desc:'Extra-player attack after a kickout: two on the posts, three outside. Pass fast, shoot when the goalie moves!',
+   tokens:[
+     {t:'g',x:350,y:75,n:'1'},
+     {t:'o',x:260,y:150,n:'1'},{t:'o',x:440,y:150,n:'2'},
+     {t:'o',x:140,y:330,n:'3'},{t:'o',x:350,y:400,n:'4'},{t:'o',x:560,y:330,n:'5'},
+     {t:'d',x:285,y:220,n:'2'},{t:'d',x:415,y:220,n:'3'},
+     {t:'d',x:235,y:350,n:'1'},{t:'d',x:465,y:350,n:'4'},
+     {t:'ball',x:605,y:330}
+   ],
+   strokes:[{t:'arrow',c:'#ffd447',p:[[555,315],[380,385]]},{t:'arrow',c:'#ffd447',p:[[330,390],[165,340]]},{t:'arrow',c:'#ff5a5a',p:[[145,315],[255,185]]}]},
+  {name:'Wing Drive', desc:'The wing sneaks to the goal when her defender looks away — pass her the ball for an easy shot!',
+   tokens:defaultTokens(),
+   strokes:[{t:'arrow',c:'#40e07f',p:[[130,260],[285,160]]},{t:'arrow',c:'#ffffff',p:[[215,480],[150,330]]},{t:'arrow',c:'#ffd447',p:[[450,505],[305,180]]}]},
+  {name:'Counterattack Lanes', desc:'Steal the ball, then GO! Wings sprint the outside lanes, everyone swims to their lane.',
+   tokens:[
+     {t:'g',x:350,y:75,n:'1'},
+     {t:'o',x:100,y:820,n:'1'},{t:'o',x:600,y:820,n:'4'},
+     {t:'o',x:240,y:870,n:'2'},{t:'o',x:460,y:870,n:'3'},
+     {t:'o',x:350,y:905,n:'5'},
+     {t:'d',x:180,y:700,n:'1'},{t:'d',x:520,y:700,n:'4'},{t:'d',x:350,y:740,n:'3'},
+     {t:'ball',x:390,y:830}
+   ],
+   strokes:[{t:'arrow',c:'#40e07f',p:[[100,790],[100,300]]},{t:'arrow',c:'#40e07f',p:[[600,790],[600,300]]},{t:'arrow',c:'#ffffff',p:[[240,845],[240,420]]},{t:'arrow',c:'#ffffff',p:[[460,845],[460,420]]}]}
+];
+
+function playCard(p,idx,mine){
+  const d=document.createElement('div'); d.className='play-card';
+  d.innerHTML=`<div class="pinfo"><div class="pname">${p.name}</div><div class="pdesc">${p.desc||''}</div></div>`;
+  const load=document.createElement('button'); load.className='pbtn load'; load.textContent='Load';
+  load.addEventListener('click',()=>{
+    tokens=JSON.parse(JSON.stringify(p.tokens)); strokes=JSON.parse(JSON.stringify(p.strokes));
+    persistBoard(); show('boardView'); toast('Loaded: '+p.name);
+  });
+  d.appendChild(load);
+  if(mine){
+    const del=document.createElement('button'); del.className='pbtn del'; del.textContent='✕';
+    del.addEventListener('click',()=>{
+      const a=getSaved(); a.splice(idx,1); setSaved(a); renderPlaybook();
+    });
+    d.appendChild(del);
+  }
+  return d;
+}
+
+function renderPlaybook(){
+  const my=document.getElementById('myPlays'); my.innerHTML='';
+  const saved=getSaved();
+  if(!saved.length) my.innerHTML='<div class="empty">No saved plays yet — draw one on the board and tap “Save play”.</div>';
+  saved.forEach((p,i)=>my.appendChild(playCard(p,i,true)));
+  const pr=document.getElementById('presetPlays'); pr.innerHTML='';
+  PRESETS.forEach(p=>pr.appendChild(playCard(p,-1,false)));
+}
+
+/* ================= BACKUP / RESTORE ================= */
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  const data={plays:getSaved(), board:JSON.parse(store.get('board')||'null')};
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='polo-playbook-backup.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('Backup file saved ✓');
+});
+document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const data=JSON.parse(r.result);
+      if(Array.isArray(data.plays)){ setSaved(data.plays); renderPlaybook(); }
+      if(data.board&&data.board.tokens){ tokens=data.board.tokens; strokes=data.board.strokes||[]; persistBoard(); draw(); }
+      toast('Backup restored ✓');
+    }catch(err){ toast('That file is not a valid backup'); }
+  };
+  r.readAsText(f); e.target.value='';
+});
+
+/* ================= COACH CHAT ================= */
+const KB=[
+{k:['position','positions','what are the roles','where should i play'],
+a:"In your league there are 6 in the water — 5 swimmers + a goalie:\n\n**Goalie** — guards the cage and starts the fast break with a big pass.\n**Center (2m)** — floats right in front of the goal with her back to it. Catches passes close and scores!\n**Wings (x2)** — low near the goal on each side. Great for sneaky-angle goals.\n**Tops (x2)** — up high. They pass a lot, take outside shots, and swim back FIRST on defense.\n\nTry every spot while you're young — the best players can play anywhere. (When you're older, the big-kid game adds one more player per team.)"},
+
+{k:['umbrella','3-3','2-2-1','front court offense','half court offense'],
+a:"The **umbrella** is your team's home base on offense (load it from the Playbook tab!). Center in front of the goal, two wings low, two tops high — shaped like an umbrella. ☂️\n\nWhy it works:\n1. **Spread out!** If everyone bunches up, one defender can guard two of you.\n2. **Pass fast** — quick passes make the defense chase, and tired defenders leave people open.\n3. **Feed the center** — when her defender is on the wrong side, zip her the ball.\n4. **Swim to the goal** when your defender is only watching the ball. That's called a drive!"},
+
+{k:['6-on-5','6 on 5','5-on-4','5 on 4','power play','man up','extra man','man-up'],
+a:"A **power play** happens when the other team gets a kickout — for 20 seconds you have an extra player! In your league that's **5-on-4**.\n\nSetup (load it from the Playbook!): 2 players by the goal posts, 3 spread outside.\n\nHow to score:\n1. **Pass fast!** The defense is missing a player — quick passes make the goalie swim back and forth.\n2. **Shoot while the goalie is still moving.** That's the secret.\n3. **Fake first** — a pump fake freezes the goalie.\n4. Post players: hands up, ready for a quick catch-and-shoot.\n\nPower play goals win games — practice this one a lot!"},
+
+{k:['5-on-6','5 on 6','4-on-5','4 on 5','man down','penalty kill','defend the power play','man-down'],
+a:"**Man-down defense** — your team is short one player for 20 seconds after a kickout:\n\n1. Don't chase! Drop back into a **zone** between the goal and the shooters.\n2. **Hands UP the whole time** — your arms block passes and shots.\n3. Protect the middle and the posts first. Make them shoot from far away, over your arms.\n4. When they shoot — turn and **swim the other way fast!** Your teammate comes back in and now YOU might get the extra-player attack."},
+
+{k:['center defense','defend the center','hole d','hole defense','guard the 2m','defending 2m','stop the center'],
+a:"Guarding the other team's **center** (the player in front of your goal):\n\n1. Get there **early** — beat her to the spot before the ball comes.\n2. Stay **between her and the ball**, a little in front, so passes can't reach her.\n3. Keep your legs kicking (eggbeater!) so she can't push you under.\n4. **Don't climb on her back or grab** — that's the fastest way to get kicked out for 20 seconds.\n\nIf she catches it anyway, don't panic — put your hands up and make the shot hard."},
+
+{k:['play center','hole set','2 meter offense','2m offense','post up','playing the hole','sweep','backhand'],
+a:"Playing **center** — the brave spot right in front of the goal:\n\n1. Swim there **first** and hold your spot with strong legs. Body between your defender and the ball.\n2. Put **one hand up** and call for the ball — be a big target!\n3. When you catch it: turn and shoot quick, or shoot **over your shoulder** (backhand), or...\n4. If TWO defenders come at you, flick the ball out to your open teammate. That's a great play too!\n\nCenters get fouled a lot. That's not bad — fouls on you can earn your team a power play. 💪"},
+
+{k:['counterattack','counter attack','fast break','transition','breakaway'],
+a:"The **counterattack** = steal the ball, then RACE to the other goal before the defense gets back. Most goals in your league come from this!\n\n1. The second your team gets the ball — **GO!** Don't watch, swim!\n2. Wings sprint up the **outside lanes**, near the walls.\n3. The goalie or a top player throws a long pass to the leader.\n4. If it's 2-on-1: swim at the defender, and if they come to you, pass to your open teammate for the easy goal.\n\nLoad **Counterattack Lanes** in the Playbook to see the swim routes. The team that swims hardest gets the free goals!"},
+
+{k:['press','beat the press','pressed','being pressed','press defense','pressure defense'],
+a:"A **press** is when a defender guards you super close everywhere you go.\n\n**When YOU press:** stay between your player and your goal, one hand near the ball, and don't let them catch an easy pass.\n\n**When you're being pressed:**\n1. **Keep swimming!** A moving player is really hard to press.\n2. When you catch the ball, put your **body between it and the defender**.\n3. Put the ball on the water in front of you — if they reach over you to grab it, that's a foul and you get a **free pass**.\n4. Or just swim right past them toward the goal — a pressing defender has nobody behind them!"},
+
+{k:['zone','drop defense','m drop','drop','sagging'],
+a:"A **zone (drop) defense** is when defenders back off their players and crowd the middle in front of the goal, protecting the center.\n\nHow to beat it:\n1. **Shoot from outside!** If they give you space, that's an invitation. Take confident shots.\n2. Pass fast side-to-side — zones are slow to shift.\n3. Sneak passes to the wings down low, under the zone.\n\nIf your outside shots start going in, they'll have to come out and press — and then the center opens up."},
+
+{k:['foul','fouls','exclusion','kickout','kick out','ejection','penalty','5 meter','5m shot','ordinary foul','rules'],
+a:"The three kinds of fouls:\n\n**Regular foul** — small stuff, like reaching over someone to poke the ball. The other team gets a **free pass**. These happen all game long — no big deal.\n**Kickout (exclusion)** — bigger foul, like pulling someone back or dunking a player who doesn't have the ball. You sit out **20 seconds** and the other team attacks with an extra player.\n**Penalty** — a foul that stops a sure goal right in front of the cage. The other team gets a **free shot** 1-on-1 with the goalie.\n\nTwo more big rules: only **one hand** on the ball (goalies can use two), and don't pull the ball underwater when someone's guarding you — that's their ball."},
+
+{k:['shot clock','how long to shoot','30 second','possession time'],
+a:"Your team gets a limited time to take a shot each possession — usually **30 seconds** (leagues can differ, ask your coach what yours uses). Run out of time = other team's ball.\n\nWhat it means for you: no rush at the start, but don't hold the ball forever! If the clock is getting low, listen for coaches yelling \"SHOOT!\" — that's why. 😄"},
+
+{k:['eggbeater','egg beater','tread','treading','legs','stronger legs','vertical'],
+a:"**Eggbeater** is the most important skill in water polo! It's how you float tall without using your hands.\n\nHow it works: your legs make circles in opposite directions, like two egg whisks. Knees wide, heels up toward your bottom, floppy relaxed ankles.\n\nFun ways to practice:\n1. Tread with **both hands out of the water** — try 20 seconds, then rest. Make it a game: beat yesterday's time!\n2. Tread while **holding a ball up high**.\n3. **Rocket jumps** — eggbeater, then explode UP as high as you can. 10 in a row.\n\nStrong eggbeater legs = higher shooting, better defense, better everything. A little practice every day adds up fast! 🚀"},
+
+{k:['shoot','shooting','shot','score more','how to score','skip shot','lob','fake','faking'],
+a:"How to score more goals:\n\n1. **Rise UP out of the water** before you shoot — power comes from your legs, not just your arm.\n2. **Fake first!** Pretend to shoot, watch the goalie jump, then shoot where they aren't. The fake is magic.\n3. **Aim for the corners** — high corners are hardest for goalies to reach. Pick your corner before you even catch the ball.\n4. Cool shots to learn:\n**Skip shot** — bounce the ball off the water in front of the goalie. Hard to block!\n**Lob** — a rainbow throw over a goalie who's come out too far.\n\nAfter practice: 20 extra shots at the corners. Every time. That's how scorers are made."},
+
+{k:['pass','passing','dry pass','wet pass','turnover','catch'],
+a:"Two kinds of passes:\n\n**Dry pass** — throw it right to your teammate's **raised hand** so it never touches the water. Use this for most passes.\n**Wet pass** — throw it onto the water right in front of your center so she can grab it and shoot. \n\nGood passing tips:\n1. Catch with your hand up and elbow back — then you're instantly ready to throw.\n2. Pass to the side **away from the defender**.\n3. Look at your teammate first! No-look passes look cool but lose games.\n\nThe best young players aren't always the biggest — they're the ones who don't give the ball away."},
+
+{k:['goalie','goalkeeper','keeper','blocking','save'],
+a:"**Goalie** tips:\n\n1. **Stay in the middle** of where the shooter could score — being in the right spot blocks more shots than fast hands.\n2. Keep your chest high with strong eggbeater, then **explode up** exactly when they shoot — not before!\n3. Watch the shooter's **elbow**, not their eyes. Eyes lie, elbows don't.\n4. After a save, look up fast — your teammates are already swimming! Throw them a **long pass** and start the counterattack.\n5. Be LOUD. The goalie sees everything, so tell your team who to guard."},
+
+{k:['drive','driving','get free','get open','cut'],
+a:"A **drive** is a sneaky swim to the goal when you DON'T have the ball:\n\n1. Wait for your defender to **turn their head** to look at the ball...\n2. Then **GO!** Swim hard right at the goal, first 3 strokes as fast as you can.\n3. Put a hand up when you're open — your teammate can pass you the ball for a close shot.\n4. Even if you don't get the ball, you dragged your defender away and made space for a teammate. Still a win!\n\nDefenders hate drivers. Be a driver. 😎"},
+
+{k:['drill','drills','practice at home','train alone','improve fast','get better','workout'],
+a:"Fun ways to get better outside of practice:\n\n**In the pool:**\n• Eggbeater game — hands up, count how long you last. Beat your record!\n• 20 shots at the corners after every swim\n• Head-up sprints — swim fast with your eyes forward, like in a game\n• Ball tricks — figure-8s around your body, one-hand pickups, dribble-swimming\n\n**At home (no pool needed):**\n• Wall sits and jump squats for rocket legs\n• Play catch with any ball — one hand only, like polo!\n• Watch water polo videos and guess what the players will do next\n\n15 fun minutes a day beats one giant boring workout. Keep it playful!"},
+
+{k:['conditioning','fitness','tired','endurance','stamina','swim faster'],
+a:"Water polo is lots of **short sprints**, not one long swim. So practice like the game:\n\n1. Sprint one length as fast as you can, rest, repeat. A few of these beat a long slow swim.\n2. Try **sprint + tread**: swim hard, then eggbeater 10 seconds with hands up, then sprint back.\n3. Getting tired in the 4th quarter is normal — every extra practice makes it better.\n\nAnd the secret grown-up stuff: **sleep and good food** are half of being fast. True for Olympians, true for 10-year-olds!"},
+
+{k:['nervous','nerves','confidence','mental','pressure game','scared','mistake','messed up'],
+a:"Every single player gets nervous — even Olympians! Tricks that help:\n\n1. Think about **jobs, not scores**. Instead of \"I have to score,\" think \"swim hard, talk to my team, take my shot when it's there.\" You control those!\n2. **Mistakes are part of the game.** Everyone throws a bad pass sometimes. The best players forget it in 5 seconds and swim back hard.\n3. Have a **pre-game routine** — same warm-up, same snack, maybe a lucky song. It makes the nerves quieter.\n4. Coaches notice **hustle and smiles** way more than goals. Effort never has a bad day."},
+
+{k:['tryout','tryouts','make the team','impress the coach','get noticed','playing time'],
+a:"What coaches notice most in young players:\n\n1. **Swimming speed and eggbeater** — keep working on both.\n2. **Hustle** — swimming back on defense EVERY time. Coaches love this more than fancy goals.\n3. **Talking** — calling out \"I got her!\" or \"driver!\" makes you sound like a veteran.\n4. **Listening** — when the coach gives a tip, try it right away. That's called being coachable, and it's a superpower.\n5. **Being a good teammate** — cheering, high-fives, no pouting.\n\nShow up early, hustle everything, have fun. That's the whole recipe."},
+
+{k:['communicate','communication','talking','call out'],
+a:"**Talking** in the pool is a secret weapon:\n\nOn defense: shout \"I got 3!\" to claim your player, and \"DRIVER!\" when someone sneaks toward the goal.\nOn offense: call your teammate's name when you're open, and yell \"BALL'S FREE!\" on a loose ball.\n\nA loud team plays like it has an extra player. Start with one habit: shout \"driver!\" every time you see one. Your coach will notice in about one game. 📣"},
+
+{k:['what should i work on','weakest','most important skill','first thing to learn','fundamentals','best way to improve'],
+a:"The best things for a 10U player to work on, in order:\n\n1. **Eggbeater** — everything in polo is built on it.\n2. **Head-up swimming** — fast, with eyes forward so you can see the game.\n3. **Catching and throwing with one hand** — both directions, both sides.\n4. **Being loud and brave** — talk, ask for the ball, take your shot.\n5. **Watching polo** — Olympic games are free on YouTube. Use this app's board to copy plays you see!\n\nAnd the biggest one: **have fun**. Kids who love the game practice more, and practice makes players."},
+
+{k:['corner throw','corner','goal line throw','out of bounds'],
+a:"**Corner throw**: if the ball goes out over the goal line and a **defender** (or goalie) touched it last, your team gets the ball back at the 2-meter line on that side.\n\nQuick corner trick: restart FAST with a pass to a teammate near the post before the defense wakes up — easy goals live there. If YOUR team threw it out, the goalie gets the ball instead."},
+
+{k:['sprint','swim off','start of game','first possession'],
+a:"Every quarter starts with a **sprint** (swim-off) — one player from each team races to the ball in the middle of the pool!\n\nIf you're the sprinter: push off hard, head down for 3–4 strokes, then look up, and **tap the ball BACK to your teammate** — not forward. Winning the sprint means your team attacks first, and teams love scoring on the very first play."}
+];
+
+const chatLog=document.getElementById('chatLog');
+let chatHist=[];
+try{ chatHist=JSON.parse(store.get('chat')||'[]'); }catch(e){ chatHist=[]; }
+function addMsg(text,who,save=true){
+  const m=document.createElement('div'); m.className='msg '+who;
+  if(who==='coach') m.innerHTML=text.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  else m.textContent=text;
+  chatLog.appendChild(m); chatLog.scrollTop=chatLog.scrollHeight;
+  if(save){
+    chatHist.push([who,text]);
+    if(chatHist.length>200) chatHist=chatHist.slice(-200);
+    try{ store.set('chat',JSON.stringify(chatHist)); }catch(e){}
+  }
+}
+
+function answer(q){
+  const ql=q.toLowerCase();
+  let best=null,score=0;
+  for(const e of KB){
+    let s=0;
+    for(const k of e.k) if(ql.includes(k)) s+=k.length; // longer keyword = stronger match
+    if(s>score){score=s;best=e;}
+  }
+  if(best) return best.a;
+  return "Good question! I don't have a deep answer for that one yet. Try asking me about: **positions**, the **umbrella**, **6-on-5**, **defending the center**, **counterattack**, **fouls and exclusions**, **shooting**, **eggbeater**, **press vs zone**, or **drills to improve**.";
+}
+
+function send(txt){
+  const q=(txt??document.getElementById('chatInput').value).trim();
+  if(!q) return;
+  document.getElementById('chatInput').value='';
+  addMsg(q,'user');
+  setTimeout(()=>addMsg(answer(q),'coach'),350);
+}
+document.getElementById('sendBtn').addEventListener('click',()=>send());
+document.getElementById('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter') send(); });
+
+const CHIPS=['What are the positions?','How does the power play work?','What is a kickout?','How do I get a stronger eggbeater?','Tips for shooting?','What is the umbrella?','What if I get nervous?','How do I get better at home?'];
+const chipBox=document.getElementById('chips');
+CHIPS.forEach(c=>{ const b=document.createElement('button'); b.className='chip'; b.textContent=c; b.addEventListener('click',()=>send(c)); chipBox.appendChild(b); });
+
+if(chatHist.length){
+  chatHist.forEach(([who,text])=>addMsg(text,who,false));
+}else{
+  addMsg("Hey! I'm **Coach** 🧢 — your water polo expert. Ask me about positions, set plays, the power play, defense, rules, shooting, or drills. Tap a suggestion below or type your own question!",'coach');
+}
+
+/* boot */
+requestAnimationFrame(resizeCanvas);
+setTimeout(resizeCanvas,150);
+</script>
+</body>
+</html>
