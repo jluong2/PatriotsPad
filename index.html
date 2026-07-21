@@ -256,14 +256,14 @@ let dragging=null, drawing=null, dpr=Math.max(1,window.devicePixelRatio||1);
 
 function defaultTokens(){
   return [
-    {t:'g', x:350,y:70,   n:'1', team:'d'},         // dark team goalie (top goal)
-    {t:'g', x:350,y:1230, n:'1', team:'w'},         // white team goalie (bottom goal)
-    {t:'o', x:350,y:165, n:'4'},                    // center / 2m
-    {t:'o', x:150,y:300, n:'1'}, {t:'o', x:550,y:300,n:'3'},   // wings
-    {t:'o', x:350,y:500, n:'2'},                    // top
-    {t:'d', x:350,y:230, n:'2'},
-    {t:'d', x:205,y:350, n:'1'}, {t:'d', x:495,y:350,n:'3'},
-    {t:'d', x:350,y:570, n:'4'},
+    {t:'g', x:350,y:70,   n:'G', team:'d'},         // dark team goalie (top goal)
+    {t:'g', x:350,y:1230, n:'G', team:'w'},         // white team goalie (bottom goal)
+    {t:'o', x:350,y:165, n:'C'},                    // center / 2m
+    {t:'o', x:150,y:300, n:'W'}, {t:'o', x:550,y:300,n:'W'},   // wings
+    {t:'o', x:350,y:500, n:'T'},                    // top
+    {t:'d', x:350,y:230, n:'C'},                    // guards the center
+    {t:'d', x:205,y:350, n:'W'}, {t:'d', x:495,y:350,n:'W'},   // guard the wings
+    {t:'d', x:350,y:570, n:'T'},                    // guards the top
     {t:'ball', x:415,y:525}
   ];
 }
@@ -481,10 +481,10 @@ const PRESETS=[
    strokes:[{t:'arrow',c:'#40e07f',p:[[150,300],[285,165]]},{t:'arrow',c:'#ffffff',p:[[350,500],[220,390]]},{t:'arrow',c:'#ffd447',p:[[415,525],[305,180]]}]},
   {name:'Counterattack Lanes', desc:'Steal the ball, then GO! Wings sprint the outside lanes, everyone swims to their lane.',
    tokens:[
-     {t:'g',x:350,y:70,n:'1',team:'d'},{t:'g',x:350,y:1230,n:'1',team:'w'},
-     {t:'o',x:110,y:1090,n:'1'},{t:'o',x:590,y:1090,n:'3'},
-     {t:'o',x:260,y:1150,n:'2'},{t:'o',x:440,y:1150,n:'4'},
-     {t:'d',x:180,y:900,n:'1'},{t:'d',x:520,y:900,n:'3'},{t:'d',x:350,y:960,n:'2'},
+     {t:'g',x:350,y:70,n:'G',team:'d'},{t:'g',x:350,y:1230,n:'G',team:'w'},
+     {t:'o',x:110,y:1090,n:'W'},{t:'o',x:590,y:1090,n:'W'},   // wings sprint the outside lanes
+     {t:'o',x:260,y:1150,n:'T'},{t:'o',x:440,y:1150,n:'C'},   // top & center fill the inside lanes
+     {t:'d',x:180,y:900,n:'W'},{t:'d',x:520,y:900,n:'W'},{t:'d',x:350,y:960,n:'C'},
      {t:'ball',x:395,y:1120}
    ],
    strokes:[{t:'arrow',c:'#40e07f',p:[[110,1060],[110,350]]},{t:'arrow',c:'#40e07f',p:[[590,1060],[590,350]]},{t:'arrow',c:'#ffffff',p:[[260,1120],[260,480]]},{t:'arrow',c:'#ffffff',p:[[440,1120],[440,480]]}]}
