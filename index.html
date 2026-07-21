@@ -159,6 +159,7 @@
       <button class="tbtn warn" id="clearBtn">🗑 Clear ink</button>
       <button class="tbtn" id="resetBtn">🔄 Reset</button>
       <button class="tbtn" id="modeBtn">▣ Full court</button>
+      <button class="tbtn" id="orientBtn">↕️ Vertical</button>
     </div>
     <div id="boardWrap"><canvas id="pool"></canvas></div>
     <div class="board-actions">
@@ -251,6 +252,7 @@ document.getElementById('toPlaybookBtn').addEventListener('click',()=>show('play
 const W=700, H=1300;                      // internal coords, full court, goals both ends
 const canvas=document.getElementById('pool'), ctx=canvas.getContext('2d');
 let viewH=(function(){ try{return store.get('mode')==='half'?700:1300;}catch(e){return 1300;} })(); // half court shows top half only
+let orient=(function(){ try{return store.get('orient')==='h'?'h':'v';}catch(e){return 'v';} })(); // 'v' = goals top/bottom, 'h' = goals left/right
 let tokens=[], strokes=[], tool='move', color='#ffd447';
 let dragging=null, drawing=null, dpr=Math.max(1,window.devicePixelRatio||1);
 
@@ -285,13 +287,35 @@ function resizeCanvas(){
   const wrap=document.getElementById('boardWrap');
   const availW=wrap.clientWidth-8, availH=wrap.clientHeight-8;
   if(availW<=0||availH<=0) return;
-  const scale=Math.min(availW/W, availH/viewH);
-  canvas.style.width=(W*scale)+'px'; canvas.style.height=(viewH*scale)+'px';
-  canvas.width=W*scale*dpr; canvas.height=viewH*scale*dpr;
-  ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
+  if(orient==='h'){
+    // court is still modeled W-wide/viewH-tall internally; rotate 90° at render time
+    // so goals land left/right instead of top/bottom. Every draw*() function below
+    // still just draws in the original W×viewH space unmodified.
+    const scale=Math.min(availW/viewH, availH/W);
+    canvas.style.width=(viewH*scale)+'px'; canvas.style.height=(W*scale)+'px';
+    canvas.width=viewH*scale*dpr; canvas.height=W*scale*dpr;
+    const s=scale*dpr;
+    ctx.setTransform(0,s,-s,0,s*viewH,0);
+  } else {
+    const scale=Math.min(availW/W, availH/viewH);
+    canvas.style.width=(W*scale)+'px'; canvas.style.height=(viewH*scale)+'px';
+    canvas.width=W*scale*dpr; canvas.height=viewH*scale*dpr;
+    ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
+  }
   draw();
 }
 window.addEventListener('resize',resizeCanvas);
+
+/* text should always read upright, even though the canvas transform itself
+   is rotated 90° in horizontal orientation — draw it through a local
+   counter-rotation instead of just calling ctx.fillText directly */
+function drawUprightText(text,x,y){
+  ctx.save();
+  ctx.translate(x,y);
+  if(orient==='h') ctx.rotate(-Math.PI/2);
+  ctx.fillText(text,0,0);
+  ctx.restore();
+}
 
 function drawPool(){
   // water
@@ -318,8 +342,8 @@ function drawPool(){
   ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
   // labels
   ctx.fillStyle='rgba(255,255,255,.55)'; ctx.font='700 22px -apple-system,sans-serif';
-  ctx.fillText('2m',12,182); ctx.fillText('5m',12,322); ctx.fillText('HALF',12,H/2-10);
-  ctx.fillText('5m',12,H-336); ctx.fillText('2m',12,H-196);
+  drawUprightText('2m',12,182); drawUprightText('5m',12,322); drawUprightText('HALF',12,H/2-10);
+  drawUprightText('5m',12,H-336); drawUprightText('2m',12,H-196);
   // top goal
   ctx.fillStyle='#fff'; ctx.fillRect(250,40,200,14);
   ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(250,54,200,46);
@@ -364,7 +388,7 @@ function drawToken(tk){
   if(tk.t!=='ball'){
     ctx.fillStyle=tk.t==='o'?'#12233d':'#fff';
     ctx.font='800 20px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(tk.n,tk.x,tk.y+1); ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+    drawUprightText(tk.n,tk.x,tk.y+1); ctx.textAlign='start'; ctx.textBaseline='alphabetic';
   }
 }
 
@@ -377,7 +401,9 @@ function draw(){
 
 function evPos(e){
   const r=canvas.getBoundingClientRect();
-  return [ (e.clientX-r.left)*(W/r.width), (e.clientY-r.top)*(viewH/r.height) ];
+  const fx=(e.clientX-r.left)/r.width, fy=(e.clientY-r.top)/r.height;
+  if(orient==='h') return [ fy*W, viewH-fx*viewH ];
+  return [ fx*W, fy*viewH ];
 }
 
 canvas.addEventListener('pointerdown',e=>{
@@ -442,6 +468,19 @@ modeBtn.addEventListener('click',()=>{
   setMode(m); toast(m==='half'?'Half court — attacking end':'Full court');
 });
 setMode(viewH===700?'half':'full');
+
+const orientBtn=document.getElementById('orientBtn');
+function setOrient(o){
+  orient=o;
+  try{ store.set('orient',o); }catch(e){}
+  orientBtn.textContent=(o==='h')?'↔️ Horizontal':'↕️ Vertical';
+  resizeCanvas();
+}
+orientBtn.addEventListener('click',()=>{
+  const o=(orient==='h')?'v':'h';
+  setOrient(o); toast(o==='h'?'Horizontal pool':'Vertical pool');
+});
+setOrient(orient);
 
 /* ================= PLAYBOOK ================= */
 function getSaved(){ try{ return JSON.parse(store.get('plays')||'[]'); }catch(e){ return []; } }
