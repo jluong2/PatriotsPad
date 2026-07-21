@@ -270,7 +270,7 @@ function defaultTokens(){
 tokens=defaultTokens();
 
 /* autosave current board so a reload never loses work */
-const LAYOUT_V=3; // bump when court layout changes so stale boards don't restore
+const LAYOUT_V=4; // bump when court layout changes so stale boards don't restore
 function persistBoard(){
   try{ store.set('board',JSON.stringify({v:LAYOUT_V,tokens,strokes})); }catch(e){}
 }
