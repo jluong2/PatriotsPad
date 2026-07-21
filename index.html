@@ -17,7 +17,7 @@
     --safe-top:env(safe-area-inset-top,0px);
     --safe-bottom:env(safe-area-inset-bottom,0px);
   }
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:pan-x pan-y}
   html,body{height:100%;overflow:hidden}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -223,6 +223,16 @@
     </div>
   </div>
 </div>
+<div class="modal-bg" id="labelModal">
+  <div class="modal">
+    <h3>✏️ Relabel player</h3>
+    <input id="labelInput" type="text" placeholder="e.g. W" maxlength="4" autocomplete="off">
+    <div class="row">
+      <button class="abtn ghost" id="cancelLabel">Cancel</button>
+      <button class="abtn save" id="confirmLabel">Save</button>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="importShareModal">
   <div class="modal">
     <h3>📥 Add shared play?</h3>
@@ -266,6 +276,7 @@ let viewH=(function(){ try{return store.get('mode')==='half'?700:1300;}catch(e){
 let orient=(function(){ try{return store.get('orient')==='h'?'h':'v';}catch(e){return 'v';} })(); // 'v' = goals top/bottom, 'h' = goals left/right
 let tokens=[], strokes=[], tool='move', color='#ffd447';
 let dragging=null, drawing=null, dpr=Math.max(1,window.devicePixelRatio||1);
+let dragStartPos=null, dragMoved=false;
 
 function defaultTokens(){
   return [
@@ -423,7 +434,7 @@ canvas.addEventListener('pointerdown',e=>{
   if(tool==='move'){
     for(let i=tokens.length-1;i>=0;i--){
       const tk=tokens[i], R=tk.t==='ball'?22:32;
-      if((x-tk.x)**2+(y-tk.y)**2 < R*R){ dragging=tk; return; }
+      if((x-tk.x)**2+(y-tk.y)**2 < R*R){ dragging=tk; dragStartPos=[x,y]; dragMoved=false; return; }
     }
   } else {
     drawing={t:tool,c:color,p:[[x,y]]};
@@ -433,13 +444,23 @@ canvas.addEventListener('pointermove',e=>{
   if(!dragging&&!drawing) return;
   e.preventDefault();
   const [x,y]=evPos(e);
-  if(dragging){ dragging.x=Math.max(20,Math.min(W-20,x)); dragging.y=Math.max(20,Math.min(viewH-20,y)); }
+  if(dragging){
+    if(!dragMoved){
+      const dx=x-dragStartPos[0], dy=y-dragStartPos[1];
+      if(dx*dx+dy*dy>15*15) dragMoved=true;
+    }
+    dragging.x=Math.max(20,Math.min(W-20,x)); dragging.y=Math.max(20,Math.min(viewH-20,y));
+  }
   else drawing.p.push([x,y]);
   draw();
 });
 function endPointer(){
   if(drawing){ if(drawing.p.length>1) strokes.push(drawing); drawing=null; }
-  dragging=null; draw(); persistBoard();
+  if(dragging){
+    if(!dragMoved && dragging.t!=='ball') openLabelEditor(dragging);
+    dragging=null;
+  }
+  draw(); persistBoard();
 }
 canvas.addEventListener('pointerup',endPointer);
 canvas.addEventListener('pointercancel',endPointer);
@@ -464,6 +485,26 @@ clearModal.addEventListener('click',e=>{ if(e.target===clearModal) clearModal.cl
 document.getElementById('confirmClear').addEventListener('click',()=>{
   strokes=[]; draw(); persistBoard(); clearModal.classList.remove('open'); toast('Ink cleared');
 });
+
+let labelTarget=null;
+const labelModal=document.getElementById('labelModal'), labelInput=document.getElementById('labelInput');
+function openLabelEditor(tk){
+  labelTarget=tk;
+  labelInput.value=tk.n||'';
+  labelModal.classList.add('open');
+  setTimeout(()=>{ labelInput.focus(); labelInput.select(); },100);
+}
+document.getElementById('cancelLabel').addEventListener('click',()=>{ labelModal.classList.remove('open'); labelTarget=null; });
+labelModal.addEventListener('click',e=>{ if(e.target===labelModal){ labelModal.classList.remove('open'); labelTarget=null; } });
+function confirmLabel(){
+  if(labelTarget){
+    const v=labelInput.value.trim();
+    if(v){ labelTarget.n=v.slice(0,4); draw(); persistBoard(); }
+  }
+  labelModal.classList.remove('open'); labelTarget=null;
+}
+document.getElementById('confirmLabel').addEventListener('click',confirmLabel);
+labelInput.addEventListener('keydown',e=>{ if(e.key==='Enter') confirmLabel(); });
 
 document.getElementById('resetBtn').addEventListener('click',()=>{ tokens=defaultTokens(); strokes=[]; draw(); persistBoard(); toast('Board reset'); });
 
