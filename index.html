@@ -88,6 +88,7 @@
   .play-card .pdesc{font-size:12px; color:var(--dim); margin-top:2px; overflow:hidden; text-overflow:ellipsis}
   .pbtn{border:none; border-radius:10px; padding:9px 13px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; flex-shrink:0}
   .pbtn.load{background:var(--accent); color:#1a2c45}
+  .pbtn.share{background:rgba(255,255,255,.1); color:var(--text); border:1px solid rgba(255,255,255,.15)}
   .pbtn.del{background:rgba(255,90,90,.15); color:#ff9d9d}
   .empty{color:var(--dim); font-size:13px; padding:8px 4px}
 
@@ -219,6 +220,16 @@
     <div class="row">
       <button class="abtn ghost" id="cancelClear">Cancel</button>
       <button class="abtn danger" id="confirmClear">Clear ink</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="importShareModal">
+  <div class="modal">
+    <h3>📥 Add shared play?</h3>
+    <p id="importShareDesc"></p>
+    <div class="row">
+      <button class="abtn ghost" id="cancelImportShare">Not now</button>
+      <button class="abtn save" id="confirmImportShare">Add to my plays</button>
     </div>
   </div>
 </div>
@@ -540,6 +551,9 @@ function playCard(p,idx,mine){
   });
   d.appendChild(load);
   if(mine){
+    const share=document.createElement('button'); share.className='pbtn share'; share.textContent='🔗 Share';
+    share.addEventListener('click',()=>sharePlay(p));
+    d.appendChild(share);
     const del=document.createElement('button'); del.className='pbtn del'; del.textContent='✕';
     del.addEventListener('click',()=>{
       const a=getSaved(); a.splice(idx,1); setSaved(a); renderPlaybook();
@@ -548,6 +562,65 @@ function playCard(p,idx,mine){
   }
   return d;
 }
+
+/* ================= SHARE (link-based, no server) ================= */
+function b64encode(str){
+  const bytes=new TextEncoder().encode(str);
+  let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64decode(str){
+  let b64=str.replace(/-/g,'+').replace(/_/g,'/');
+  while(b64.length%4) b64+='=';
+  const bin=atob(b64);
+  const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+function sharePlay(p){
+  const payload={name:p.name, desc:p.desc, tokens:p.tokens, strokes:p.strokes};
+  const url=location.origin+location.pathname+'#play='+b64encode(JSON.stringify(payload));
+  if(navigator.share){
+    navigator.share({title:'Polo Playbook: '+p.name, text:'Check out this play: '+p.name, url}).catch(()=>{});
+  } else if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(()=>toast('Link copied! Paste it to share ✓')).catch(()=>toast('Could not copy the link'));
+  } else {
+    toast('Sharing isn\'t supported on this browser');
+  }
+}
+
+let pendingSharedPlay=null;
+const importShareModal=document.getElementById('importShareModal');
+function closeImportShare(){ importShareModal.classList.remove('open'); pendingSharedPlay=null; }
+document.getElementById('cancelImportShare').addEventListener('click', closeImportShare);
+importShareModal.addEventListener('click', e=>{ if(e.target===importShareModal) closeImportShare(); });
+document.getElementById('confirmImportShare').addEventListener('click', ()=>{
+  if(pendingSharedPlay){
+    const a=getSaved();
+    a.unshift({
+      name:(pendingSharedPlay.name||'Shared play').slice(0,40),
+      desc:pendingSharedPlay.desc||'Shared play',
+      tokens:pendingSharedPlay.tokens,
+      strokes:pendingSharedPlay.strokes||[]
+    });
+    setSaved(a);
+    toast('Added to your playbook ✓');
+  }
+  closeImportShare();
+  show('playbookView');
+});
+(function checkSharedPlayLink(){
+  const m=location.hash.match(/^#play=(.+)/);
+  if(!m) return;
+  history.replaceState(null,'',location.pathname+location.search);
+  try{
+    const p=JSON.parse(b64decode(m[1]));
+    if(!p||!p.tokens) return;
+    pendingSharedPlay=p;
+    document.getElementById('importShareDesc').textContent=(p.name||'Shared play')+(p.desc?' — '+p.desc:'');
+    importShareModal.classList.add('open');
+  }catch(e){}
+})();
 
 function renderPlaybook(){
   const my=document.getElementById('myPlays'); my.innerHTML='';
