@@ -157,6 +157,7 @@
       <button class="tbtn" id="undoBtn">↩️ Undo</button>
       <button class="tbtn warn" id="clearBtn">🗑 Clear ink</button>
       <button class="tbtn" id="resetBtn">🔄 Reset</button>
+      <button class="tbtn" id="modeBtn">▣ Full court</button>
     </div>
     <div id="boardWrap"><canvas id="pool"></canvas></div>
     <div class="board-actions">
@@ -236,33 +237,36 @@ tabs.forEach(b=>b.addEventListener('click',()=>show(b.dataset.view)));
 document.getElementById('toPlaybookBtn').addEventListener('click',()=>show('playbookView'));
 
 /* ================= BOARD ================= */
-const W=700, H=950;                       // internal coords, goal at top
+const W=700, H=1300;                      // internal coords, full court, goals both ends
 const canvas=document.getElementById('pool'), ctx=canvas.getContext('2d');
+let viewH=(function(){ try{return store.get('mode')==='half'?700:1300;}catch(e){return 1300;} })(); // half court shows top half only
 let tokens=[], strokes=[], tool='move', color='#ffd447';
 let dragging=null, drawing=null, dpr=Math.max(1,window.devicePixelRatio||1);
 
 function defaultTokens(){
   return [
-    {t:'g', x:350,y:75,  n:'1'},                    // goalie
-    {t:'o', x:350,y:165, n:'5'},                    // center / 2m
-    {t:'o', x:130,y:260, n:'1'}, {t:'o', x:570,y:260,n:'4'},   // wings
-    {t:'o', x:215,y:480, n:'2'}, {t:'o', x:485,y:480,n:'3'},   // tops
-    {t:'d', x:350,y:225, n:'2'},
-    {t:'d', x:185,y:310, n:'1'}, {t:'d', x:515,y:310,n:'4'},
-    {t:'d', x:255,y:520, n:'3'}, {t:'d', x:445,y:520,n:'5'},
-    {t:'ball', x:450,y:505}
+    {t:'g', x:350,y:70,   n:'1', team:'d'},         // dark team goalie (top goal)
+    {t:'g', x:350,y:1230, n:'1', team:'w'},         // white team goalie (bottom goal)
+    {t:'o', x:350,y:165, n:'4'},                    // center / 2m
+    {t:'o', x:150,y:300, n:'1'}, {t:'o', x:550,y:300,n:'3'},   // wings
+    {t:'o', x:350,y:500, n:'2'},                    // top
+    {t:'d', x:350,y:230, n:'2'},
+    {t:'d', x:205,y:350, n:'1'}, {t:'d', x:495,y:350,n:'3'},
+    {t:'d', x:350,y:570, n:'4'},
+    {t:'ball', x:415,y:525}
   ];
 }
 tokens=defaultTokens();
 
 /* autosave current board so a reload never loses work */
+const LAYOUT_V=3; // bump when court layout changes so stale boards don't restore
 function persistBoard(){
-  try{ store.set('board',JSON.stringify({tokens,strokes})); }catch(e){}
+  try{ store.set('board',JSON.stringify({v:LAYOUT_V,tokens,strokes})); }catch(e){}
 }
 (function restoreBoard(){
   try{
     const b=JSON.parse(store.get('board')||'null');
-    if(b&&b.tokens&&b.tokens.length){ tokens=b.tokens; strokes=b.strokes||[]; }
+    if(b&&b.v===LAYOUT_V&&b.tokens&&b.tokens.length){ tokens=b.tokens; strokes=b.strokes||[]; }
   }catch(e){}
 })();
 
@@ -270,9 +274,9 @@ function resizeCanvas(){
   const wrap=document.getElementById('boardWrap');
   const availW=wrap.clientWidth-8, availH=wrap.clientHeight-8;
   if(availW<=0||availH<=0) return;
-  const scale=Math.min(availW/W, availH/H);
-  canvas.style.width=(W*scale)+'px'; canvas.style.height=(H*scale)+'px';
-  canvas.width=W*scale*dpr; canvas.height=H*scale*dpr;
+  const scale=Math.min(availW/W, availH/viewH);
+  canvas.style.width=(W*scale)+'px'; canvas.style.height=(viewH*scale)+'px';
+  canvas.width=W*scale*dpr; canvas.height=viewH*scale*dpr;
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   draw();
 }
@@ -286,25 +290,33 @@ function drawPool(){
   // lane ropes (subtle)
   ctx.strokeStyle='rgba(255,255,255,.07)'; ctx.lineWidth=2;
   for(let x=70;x<W;x+=70){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  // goal line
+  // goal lines
   ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=4;
   ctx.beginPath(); ctx.moveTo(0,100); ctx.lineTo(W,100); ctx.stroke();
-  // 2m line (red)
+  ctx.beginPath(); ctx.moveTo(0,H-100); ctx.lineTo(W,H-100); ctx.stroke();
+  // 2m lines (red)
   ctx.strokeStyle='#ff5a5a';
   ctx.beginPath(); ctx.moveTo(0,190); ctx.lineTo(W,190); ctx.stroke();
-  // 5m line (yellow)
+  ctx.beginPath(); ctx.moveTo(0,H-190); ctx.lineTo(W,H-190); ctx.stroke();
+  // 5m lines (yellow)
   ctx.strokeStyle='#ffd447';
   ctx.beginPath(); ctx.moveTo(0,330); ctx.lineTo(W,330); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,H-330); ctx.lineTo(W,H-330); ctx.stroke();
   // half line
   ctx.strokeStyle='rgba(255,255,255,.55)';
-  ctx.beginPath(); ctx.moveTo(0,H-30); ctx.lineTo(W,H-30); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
   // labels
   ctx.fillStyle='rgba(255,255,255,.55)'; ctx.font='700 22px -apple-system,sans-serif';
-  ctx.fillText('2m',12,182); ctx.fillText('5m',12,322); ctx.fillText('HALF',12,H-40);
-  // goal
+  ctx.fillText('2m',12,182); ctx.fillText('5m',12,322); ctx.fillText('HALF',12,H/2-10);
+  ctx.fillText('5m',12,H-336); ctx.fillText('2m',12,H-196);
+  // top goal
   ctx.fillStyle='#fff'; ctx.fillRect(250,40,200,14);
   ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(250,54,200,46);
   ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.strokeRect(250,40,200,60);
+  // bottom goal
+  ctx.fillStyle='#fff'; ctx.fillRect(250,H-54,200,14);
+  ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(250,H-100,200,46);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.strokeRect(250,H-100,200,60);
 }
 
 function drawStroke(s){
@@ -335,7 +347,9 @@ function drawToken(tk){
   else if(tk.t==='g'){ ctx.fillStyle='#e03a3a'; }
   else { ctx.fillStyle='#ffd447'; }
   ctx.fill();
-  ctx.lineWidth=3; ctx.strokeStyle=tk.t==='ball'?'#c79a00':'rgba(0,0,0,.35)'; ctx.stroke();
+  ctx.lineWidth=tk.t==='g'?4:3;
+  ctx.strokeStyle=tk.t==='ball'?'#c79a00':(tk.t==='g'?(tk.team==='w'?'#f5f9ff':'#12233d'):'rgba(0,0,0,.35)');
+  ctx.stroke();
   if(tk.t!=='ball'){
     ctx.fillStyle=tk.t==='o'?'#12233d':'#fff';
     ctx.font='800 20px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -352,7 +366,7 @@ function draw(){
 
 function evPos(e){
   const r=canvas.getBoundingClientRect();
-  return [ (e.clientX-r.left)*(W/r.width), (e.clientY-r.top)*(H/r.height) ];
+  return [ (e.clientX-r.left)*(W/r.width), (e.clientY-r.top)*(viewH/r.height) ];
 }
 
 canvas.addEventListener('pointerdown',e=>{
@@ -371,7 +385,7 @@ canvas.addEventListener('pointermove',e=>{
   if(!dragging&&!drawing) return;
   e.preventDefault();
   const [x,y]=evPos(e);
-  if(dragging){ dragging.x=Math.max(20,Math.min(W-20,x)); dragging.y=Math.max(20,Math.min(H-20,y)); }
+  if(dragging){ dragging.x=Math.max(20,Math.min(W-20,x)); dragging.y=Math.max(20,Math.min(viewH-20,y)); }
   else drawing.p.push([x,y]);
   draw();
 });
@@ -394,6 +408,19 @@ document.getElementById('undoBtn').addEventListener('click',()=>{ strokes.pop();
 document.getElementById('clearBtn').addEventListener('click',()=>{ strokes=[]; draw(); persistBoard(); });
 document.getElementById('resetBtn').addEventListener('click',()=>{ tokens=defaultTokens(); strokes=[]; draw(); persistBoard(); toast('Board reset'); });
 
+const modeBtn=document.getElementById('modeBtn');
+function setMode(m){
+  viewH = (m==='half')?700:1300;
+  try{ store.set('mode',m); }catch(e){}
+  modeBtn.textContent = (m==='half')?'◧ Half court':'▣ Full court';
+  resizeCanvas();
+}
+modeBtn.addEventListener('click',()=>{
+  const m=(viewH===1300)?'half':'full';
+  setMode(m); toast(m==='half'?'Half court — attacking end':'Full court');
+});
+setMode(viewH===700?'half':'full');
+
 /* ================= PLAYBOOK ================= */
 function getSaved(){ try{ return JSON.parse(store.get('plays')||'[]'); }catch(e){ return []; } }
 function setSaved(a){ store.set('plays',JSON.stringify(a)); }
@@ -415,31 +442,30 @@ document.getElementById('confirmSave').addEventListener('click',doSavePlay);
 playName.addEventListener('keydown',e=>{ if(e.key==='Enter') doSavePlay(); });
 
 const PRESETS=[
-  {name:'Umbrella (2–2–1)', desc:'Home base on offense: center in front of the goal, two wings low, two tops high.',
+  {name:'Diamond Set', desc:'Home base on offense: center in front of the goal, two wings, one top. Spread out!',
    tokens:defaultTokens(), strokes:[]},
-  {name:'Power Play (5-on-4)', desc:'Extra-player attack after a kickout: two on the posts, three outside. Pass fast, shoot when the goalie moves!',
+  {name:'Power Play (4-on-3)', desc:'Extra-player attack after a kickout: two on the posts, two outside. Pass fast, shoot when the goalie moves!',
    tokens:[
-     {t:'g',x:350,y:75,n:'1'},
-     {t:'o',x:260,y:150,n:'1'},{t:'o',x:440,y:150,n:'2'},
-     {t:'o',x:140,y:330,n:'3'},{t:'o',x:350,y:400,n:'4'},{t:'o',x:560,y:330,n:'5'},
-     {t:'d',x:285,y:220,n:'2'},{t:'d',x:415,y:220,n:'3'},
-     {t:'d',x:235,y:350,n:'1'},{t:'d',x:465,y:350,n:'4'},
-     {t:'ball',x:605,y:330}
+     {t:'g',x:350,y:70,n:'1',team:'d'},{t:'g',x:350,y:1230,n:'1',team:'w'},
+     {t:'o',x:265,y:150,n:'1'},{t:'o',x:435,y:150,n:'2'},
+     {t:'o',x:190,y:380,n:'3'},{t:'o',x:510,y:380,n:'4'},
+     {t:'d',x:290,y:225,n:'2'},{t:'d',x:410,y:225,n:'3'},
+     {t:'d',x:350,y:360,n:'1'},
+     {t:'ball',x:555,y:380}
    ],
-   strokes:[{t:'arrow',c:'#ffd447',p:[[555,315],[380,385]]},{t:'arrow',c:'#ffd447',p:[[330,390],[165,340]]},{t:'arrow',c:'#ff5a5a',p:[[145,315],[255,185]]}]},
+   strokes:[{t:'arrow',c:'#ffd447',p:[[505,365],[230,375]]},{t:'arrow',c:'#ffd447',p:[[185,360],[255,185]]},{t:'arrow',c:'#ff5a5a',p:[[440,395],[440,185]]}]},
   {name:'Wing Drive', desc:'The wing sneaks to the goal when her defender looks away — pass her the ball for an easy shot!',
    tokens:defaultTokens(),
-   strokes:[{t:'arrow',c:'#40e07f',p:[[130,260],[285,160]]},{t:'arrow',c:'#ffffff',p:[[215,480],[150,330]]},{t:'arrow',c:'#ffd447',p:[[450,505],[305,180]]}]},
+   strokes:[{t:'arrow',c:'#40e07f',p:[[150,300],[285,165]]},{t:'arrow',c:'#ffffff',p:[[350,500],[220,390]]},{t:'arrow',c:'#ffd447',p:[[415,525],[305,180]]}]},
   {name:'Counterattack Lanes', desc:'Steal the ball, then GO! Wings sprint the outside lanes, everyone swims to their lane.',
    tokens:[
-     {t:'g',x:350,y:75,n:'1'},
-     {t:'o',x:100,y:820,n:'1'},{t:'o',x:600,y:820,n:'4'},
-     {t:'o',x:240,y:870,n:'2'},{t:'o',x:460,y:870,n:'3'},
-     {t:'o',x:350,y:905,n:'5'},
-     {t:'d',x:180,y:700,n:'1'},{t:'d',x:520,y:700,n:'4'},{t:'d',x:350,y:740,n:'3'},
-     {t:'ball',x:390,y:830}
+     {t:'g',x:350,y:70,n:'1',team:'d'},{t:'g',x:350,y:1230,n:'1',team:'w'},
+     {t:'o',x:110,y:1090,n:'1'},{t:'o',x:590,y:1090,n:'3'},
+     {t:'o',x:260,y:1150,n:'2'},{t:'o',x:440,y:1150,n:'4'},
+     {t:'d',x:180,y:900,n:'1'},{t:'d',x:520,y:900,n:'3'},{t:'d',x:350,y:960,n:'2'},
+     {t:'ball',x:395,y:1120}
    ],
-   strokes:[{t:'arrow',c:'#40e07f',p:[[100,790],[100,300]]},{t:'arrow',c:'#40e07f',p:[[600,790],[600,300]]},{t:'arrow',c:'#ffffff',p:[[240,845],[240,420]]},{t:'arrow',c:'#ffffff',p:[[460,845],[460,420]]}]}
+   strokes:[{t:'arrow',c:'#40e07f',p:[[110,1060],[110,350]]},{t:'arrow',c:'#40e07f',p:[[590,1060],[590,350]]},{t:'arrow',c:'#ffffff',p:[[260,1120],[260,480]]},{t:'arrow',c:'#ffffff',p:[[440,1120],[440,480]]}]}
 ];
 
 function playCard(p,idx,mine){
@@ -448,6 +474,7 @@ function playCard(p,idx,mine){
   const load=document.createElement('button'); load.className='pbtn load'; load.textContent='Load';
   load.addEventListener('click',()=>{
     tokens=JSON.parse(JSON.stringify(p.tokens)); strokes=JSON.parse(JSON.stringify(p.strokes));
+    if(viewH===700 && tokens.some(tk=>tk.y>700&&tk.t!=='g')) setMode('full'); // play needs the whole pool
     persistBoard(); show('boardView'); toast('Loaded: '+p.name);
   });
   d.appendChild(load);
@@ -497,15 +524,15 @@ document.getElementById('importFile').addEventListener('change',e=>{
 /* ================= COACH CHAT ================= */
 const KB=[
 {k:['position','positions','what are the roles','where should i play'],
-a:"In your league there are 6 in the water — 5 swimmers + a goalie:\n\n**Goalie** — guards the cage and starts the fast break with a big pass.\n**Center (2m)** — floats right in front of the goal with her back to it. Catches passes close and scores!\n**Wings (x2)** — low near the goal on each side. Great for sneaky-angle goals.\n**Tops (x2)** — up high. They pass a lot, take outside shots, and swim back FIRST on defense.\n\nTry every spot while you're young — the best players can play anywhere. (When you're older, the big-kid game adds one more player per team.)"},
+a:"In your league each team has 5 in the water — 4 swimmers + a goalie:\n\n**Goalie** — guards the cage and starts the fast break with a big pass.\n**Center (2m)** — floats right in front of the goal with her back to it. Catches passes close and scores!\n**Wings (x2)** — one on each side. Great for sneaky-angle goals and sprinting the counterattack.\n**Top** — up high, like a point guard. Passes a lot, takes outside shots, and swims back FIRST on defense.\n\nTry every spot while you're young — the best players can play anywhere. (When you're older, the big-kid game grows to 6 swimmers + a goalie.)"},
 
-{k:['umbrella','3-3','2-2-1','front court offense','half court offense'],
-a:"The **umbrella** is your team's home base on offense (load it from the Playbook tab!). Center in front of the goal, two wings low, two tops high — shaped like an umbrella. ☂️\n\nWhy it works:\n1. **Spread out!** If everyone bunches up, one defender can guard two of you.\n2. **Pass fast** — quick passes make the defense chase, and tired defenders leave people open.\n3. **Feed the center** — when her defender is on the wrong side, zip her the ball.\n4. **Swim to the goal** when your defender is only watching the ball. That's called a drive!"},
+{k:['umbrella','diamond','3-3','2-2-1','front court offense','half court offense'],
+a:"The **diamond** is your team's home base on offense (load \"Diamond Set\" from the Playbook tab!). Center in front of the goal, a wing on each side, one player up top — shaped like a diamond. 💎\n\nWhy it works:\n1. **Spread out!** If everyone bunches up, one defender can guard two of you.\n2. **Pass fast** — quick passes make the defense chase, and tired defenders leave people open.\n3. **Feed the center** — when her defender is on the wrong side, zip her the ball.\n4. **Swim to the goal** when your defender is only watching the ball. That's called a drive!"},
 
-{k:['6-on-5','6 on 5','5-on-4','5 on 4','power play','man up','extra man','man-up'],
-a:"A **power play** happens when the other team gets a kickout — for 20 seconds you have an extra player! In your league that's **5-on-4**.\n\nSetup (load it from the Playbook!): 2 players by the goal posts, 3 spread outside.\n\nHow to score:\n1. **Pass fast!** The defense is missing a player — quick passes make the goalie swim back and forth.\n2. **Shoot while the goalie is still moving.** That's the secret.\n3. **Fake first** — a pump fake freezes the goalie.\n4. Post players: hands up, ready for a quick catch-and-shoot.\n\nPower play goals win games — practice this one a lot!"},
+{k:['6-on-5','6 on 5','5-on-4','5 on 4','4-on-3','4 on 3','power play','man up','extra man','man-up'],
+a:"A **power play** happens when the other team gets a kickout — for 20 seconds you have an extra player! In your league that's **4-on-3**.\n\nSetup (load it from the Playbook!): 2 players by the goal posts, 2 spread outside.\n\nHow to score:\n1. **Pass fast!** The defense is missing a player — quick passes make the goalie swim back and forth.\n2. **Shoot while the goalie is still moving.** That's the secret.\n3. **Fake first** — a pump fake freezes the goalie.\n4. Post players: hands up, ready for a quick catch-and-shoot.\n\nPower play goals win games — practice this one a lot!"},
 
-{k:['5-on-6','5 on 6','4-on-5','4 on 5','man down','penalty kill','defend the power play','man-down'],
+{k:['5-on-6','5 on 6','4-on-5','4 on 5','3-on-4','3 on 4','man down','penalty kill','defend the power play','man-down'],
 a:"**Man-down defense** — your team is short one player for 20 seconds after a kickout:\n\n1. Don't chase! Drop back into a **zone** between the goal and the shooters.\n2. **Hands UP the whole time** — your arms block passes and shots.\n3. Protect the middle and the posts first. Make them shoot from far away, over your arms.\n4. When they shoot — turn and **swim the other way fast!** Your teammate comes back in and now YOU might get the extra-player attack."},
 
 {k:['center defense','defend the center','hole d','hole defense','guard the 2m','defending 2m','stop the center'],
@@ -606,7 +633,7 @@ function send(txt){
 document.getElementById('sendBtn').addEventListener('click',()=>send());
 document.getElementById('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter') send(); });
 
-const CHIPS=['What are the positions?','How does the power play work?','What is a kickout?','How do I get a stronger eggbeater?','Tips for shooting?','What is the umbrella?','What if I get nervous?','How do I get better at home?'];
+const CHIPS=['What are the positions?','How does the power play work?','What is a kickout?','How do I get a stronger eggbeater?','Tips for shooting?','What is the diamond?','What if I get nervous?','How do I get better at home?'];
 const chipBox=document.getElementById('chips');
 CHIPS.forEach(c=>{ const b=document.createElement('button'); b.className='chip'; b.textContent=c; b.addEventListener('click',()=>send(c)); chipBox.appendChild(b); });
 
